@@ -1,0 +1,18 @@
+{
+	"name": "auth-digest",
+	"version": "1.0.0",
+	"description": "Node.js module to handle http requests needing digest authentication",
+	"preferGlobal": "false",
+	"main": "auth-digest.js",
+	"author": "Seth Goldman",
+	"keywords": ["http", "authentication", "digest"],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/srgoldman/auth-digest.git"
+	},
+	"dependencies": {
+		"crypto-js": "3.1.4"
+	},
+	"engines": { "node": "*" },
+	"private": true
+}
