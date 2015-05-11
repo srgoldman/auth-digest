@@ -76,7 +76,7 @@ function makeHttpCallInternal(url, route, async, onSuccess, onError, username, p
 		console.log("We have repeated failures to authenticate. Please check your credentials.");
 	    break;
 	case 200:
-	    if (onSuccess !== null) onSuccess(xhr.responseText);
+	    if (onSuccess !== null) onSuccess(xhr);
 	    break;
 	default:
 	    if (onError !== null) 
