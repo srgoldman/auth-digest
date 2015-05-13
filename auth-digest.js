@@ -34,8 +34,7 @@
   url:       This is the fully qualified path to the resource
   route:     This is the path without the domain
   async:     Run this request asynchronously? (true or false)
-  onSuccess: A function to call with the responseText if the call succeeds
-  onError:   A function to call with the request and event (null for synchronous calls)
+  callback:  A standard Node.js callback function (error, xhr)
   username:  The username to use for authentication
   password:  The password to user for authentication
 
@@ -43,17 +42,17 @@
 
 */
 
-exports.makeHttpCall = function (url, route, async, onSuccess, onError, username, password)
+exports.makeHttpCall = function (url, route, callback, username, password)
 {
-    return makeHttpCallInternal(url, route, async, onSuccess, onError, username, password, null);
+    return makeHttpCallInternal(url, route, callback, username, password, null);
 };
 
-function getHttpRequest(url, route, async, xhr, username, password) {
-    console.log("getHttpRequest: " + (async ? "(async) " : "(sync) ") + url);
+function getHttpRequest(url, route, xhr, username, password) {
+    console.log("getHttpRequest: " + url);
 
     var authHdr = buildAuthResponse(xhr, route, username, password);
     var req = new XMLHttpRequest();
-    req.open('GET', url, async);
+    req.open('GET', url, true);
 
     if (authHdr.length) {
 	//console.log("Setting Authorization: " + authHdr);
@@ -62,33 +61,34 @@ function getHttpRequest(url, route, async, xhr, username, password) {
     return req;
 }
 
-function makeHttpCallInternal(url, route, async, onSuccess, onError, username, password, xhrOrig)
+function makeHttpCallInternal(url, route, callback, username, password, xhrOrig)
 {
-    var xhr = getHttpRequest(url, route, async, xhrOrig, username, password);
+    var xhr = getHttpRequest(url, route, xhrOrig, username, password);
     var processResults = function(e) {
 	if (xhr.readyState != 4) return xhr;
 	switch (xhr.status) {
 	case 401:
 	    if (xhrOrig === null)
 		// This is the first failure, retry with proper header
-		return makeHttpCallInternal(url, route, async, onSuccess, onError, username, password, xhr);
-	    else
+		return makeHttpCallInternal(url, route, callback, username, password, xhr);
+	    else {
 		console.log("We have repeated failures to authenticate. Please check your credentials.");
+		if (callback !== null)
+		    callback(new error(e), xhr);
+	    }
 	    break;
 	case 200:
-	    if (onSuccess !== null) onSuccess(xhr);
+	    if (callback !== null) callback(null, xhr);
 	    break;
 	default:
-	    if (onError !== null) 
-		onError(xhr, e);
+	    if (callback !== null) 
+		callback(new error(e), xhr);
 	    else
 		console.log("There was an error: " + JSON.stringify(xhr));
 	}
-	return xhr;
     };
-    if (async) xhr.onreadystatechange = processResults;
+    xhr.onreadystatechange = processResults;
     xhr.send();
-    return async ? xhr : processResults(null);
 }
 
 var md5 = require('crypto-js/md5');
