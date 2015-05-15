@@ -47,10 +47,10 @@ exports.makeHttpCall = function (url, route, callback, username, password)
     return makeHttpCallInternal(url, route, callback, username, password, null);
 };
 
-function getHttpRequest(url, route, xhr, username, password) {
+function getHttpRequest(url, route, challenge, username, password) {
     console.log("getHttpRequest: " + url);
 
-    var authHdr = buildAuthResponse(xhr, route, username, password);
+    var authHdr = buildAuthResponse(challenge, route, username, password);
     var req = new XMLHttpRequest();
     req.open('GET', url, true);
 
@@ -61,20 +61,21 @@ function getHttpRequest(url, route, xhr, username, password) {
     return req;
 }
 
-function makeHttpCallInternal(url, route, callback, username, password, xhrOrig)
+function makeHttpCallInternal(url, route, callback, username, password, challenge)
 {
-    var xhr = getHttpRequest(url, route, xhrOrig, username, password);
+    var xhr = getHttpRequest(url, route, challenge, username, password);
     var processResults = function(e) {
 	if (xhr.readyState != 4) return xhr;
 	switch (xhr.status) {
 	case 401:
-	    if (xhrOrig === null)
+	    if (challenge === null) {
 		// This is the first failure, retry with proper header
-		return makeHttpCallInternal(url, route, callback, username, password, xhr);
-	    else {
+		challenge = xhr.getResponseHeader('WWW-Authenticate');
+		return makeHttpCallInternal(url, route, callback, username, password, challenge);
+	    } else {
 		console.log("We have repeated failures to authenticate. Please check your credentials.");
 		if (callback !== null)
-		    callback(new error(e), xhr);
+		    callback(new Error(e), xhr);
 	    }
 	    break;
 	case 200:
@@ -82,7 +83,7 @@ function makeHttpCallInternal(url, route, callback, username, password, xhrOrig)
 	    break;
 	default:
 	    if (callback !== null) 
-		callback(new error(e), xhr);
+		callback(new Error(e), xhr);
 	    else
 		console.log("There was an error: " + JSON.stringify(xhr));
 	}
@@ -113,10 +114,8 @@ function genNonce(len) {
 
 var nc = 1;
 
-function buildAuthResponse(xhr, uri, username, password) 
+function buildAuthResponse(challenge, uri, username, password) 
 {
-    if (xhr === null) return "";
-    var challenge = xhr.getResponseHeader('WWW-Authenticate');
     if (challenge === null || challenge === undefined) return "";
     var pos = challenge.indexOf(" ");
     var tokens = {cnonce: genNonce(16)};
