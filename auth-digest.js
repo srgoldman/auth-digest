@@ -44,13 +44,15 @@
 
 exports.makeHttpCall = function (url, route, callback, username, password)
 {
-    return makeHttpCallInternal(url, route, callback, username, password, null);
+    return makeHttpCallInternal(url, route, callback, username, password, null, 0);
 };
+
+var authHdr = "";
 
 function getHttpRequest(url, route, challenge, username, password) {
     console.log("getHttpRequest: " + url);
 
-    var authHdr = buildAuthResponse(challenge, route, username, password);
+    authHdr = buildAuthResponse(challenge, route, username, password);
     var req = new XMLHttpRequest();
     req.open('GET', url, true);
 
@@ -61,31 +63,38 @@ function getHttpRequest(url, route, challenge, username, password) {
     return req;
 }
 
-function makeHttpCallInternal(url, route, callback, username, password, challenge)
+function makeHttpCallInternal(url, route, callback, username, password, challenge, numRetries)
 {
+    var maxRetries = 1;
     var xhr = getHttpRequest(url, route, challenge, username, password);
     var processResults = function(e) {
-	if (xhr.readyState != 4) return xhr;
+	if (xhr.readyState != 4) return null;
 	switch (xhr.status) {
 	case 401:
-	    if (challenge === null) {
+	    if (challenge === null || numRetries < maxRetries) {
 		// This is the first failure, retry with proper header
 		challenge = xhr.getResponseHeader('WWW-Authenticate');
-		return makeHttpCallInternal(url, route, callback, username, password, challenge);
+		if (url.indexOf("_method=put") > 0) {
+		    // PUT requests end up redirecting (status 303) which we don't receive.
+		    // On iOS, the authentication header gets lost so we end up here with a 401
+		    // error and reexecute the PUT which is the wrong behavior.
+		    // Strip down the request and retry.
+		    url = url.split("?")[0];
+		    route = route.split("?")[0];
+		}
+		return makeHttpCallInternal(url, route, callback, username, password, challenge, numRetries+1);
 	    } else {
 		console.log("We have repeated failures to authenticate. Please check your credentials.");
-		if (callback !== null)
-		    callback(new Error(e), xhr);
+		if (callback !== null) callback(new Error(JSON.stringify(e)), xhr);
 	    }
 	    break;
 	case 200:
-	    if (callback !== null) callback(null, xhr);
+	    if (callback !== null) callback(null, xhr.responseText);
 	    break;
 	default:
-	    if (callback !== null) 
-		callback(new Error(e), xhr);
-	    else
-		console.log("There was an error: " + JSON.stringify(xhr));
+	    if (callback !== null) callback(new Error(e), xhr);
+	    else console.log("There was an error: " + JSON.stringify(xhr));
+	    break;
 	}
     };
     xhr.onreadystatechange = processResults;
@@ -116,7 +125,7 @@ var nc = 1;
 
 function buildAuthResponse(challenge, uri, username, password) 
 {
-    if (challenge === null || challenge === undefined) return "";
+    if (challenge === null || challenge === undefined) return authHdr;
     var pos = challenge.indexOf(" ");
     var tokens = {cnonce: genNonce(16)};
     var pairs = challenge.substr(pos).trim().split(',');
