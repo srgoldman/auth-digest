@@ -74,7 +74,7 @@ function makeHttpCallInternal(url, route, callback, username, password, challeng
 	    if (challenge === null || numRetries < maxRetries) {
 		// This is the first failure, retry with proper header
 		challenge = xhr.getResponseHeader('WWW-Authenticate');
-		if (url.indexOf("_method=put") > 0) {
+		if (url.indexOf("_method=put") > 0 || url.indexOf("_method=execute") > 0) {
 		    // PUT requests end up redirecting (status 303) which we don't receive.
 		    // On iOS, the authentication header gets lost so we end up here with a 401
 		    // error and reexecute the PUT which is the wrong behavior.
