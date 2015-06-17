@@ -30,13 +30,10 @@
   the proper authentication header for digest authentication.
 
   url:       This is the fully qualified path to the resource
-  route:     This is the path without the domain
-  async:     Run this request asynchronously? (true or false)
-  onSuccess: A function to call with the responseText if the call succeeds
-  onError:   A function to call with the request and event (null for synchronous calls)
+  callback:  A standard Node.js callback function (error, xhr)
   username:  The username to use for authentication
   password:  The password to user for authentication
 
-  Returns: the xmlHttpRequest object
+  Returns: nothing
 
 */
